@@ -1,7 +1,9 @@
 use std::error::Error;
 use std::env;
+use std::fs;
 use std::process;
 use std::path::{PathBuf};
+use hack_vm_translator::translate;
 
 fn main() {
     let config = Config::build(env::args()).unwrap_or_else(|err| {
@@ -16,6 +18,13 @@ fn main() {
 }
 
 fn run(config: Config) -> Result<(), Box<dyn Error>> {
+
+    let input = fs::read_to_string(config.input_file)?;
+
+    let output = translate(&input)?;
+
+    fs::write(config.output_file, output)?;
+
     Ok(())
 }
 
