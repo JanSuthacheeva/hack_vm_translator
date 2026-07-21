@@ -19,9 +19,9 @@ fn main() {
 
 fn run(config: Config) -> Result<(), Box<dyn Error>> {
 
-    let input = fs::read_to_string(config.input_file)?;
+    let input = fs::read_to_string(&config.input_file)?;
 
-    let output = translate(&input)?;
+    let output = translate(&input, config.input_file.to_str().unwrap())?;
 
     fs::write(config.output_file, output)?;
 

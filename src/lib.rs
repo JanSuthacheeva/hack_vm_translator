@@ -1,15 +1,18 @@
 use std::error::Error;
 
 mod cleaner;
+mod code_writer;
 mod parser;
 
-pub fn translate(input: &str) -> Result<String, Box<dyn Error>> {
+pub fn translate(input: &str, name: &str) -> Result<String, Box<dyn Error>> {
 
     let program = cleaner::clean_program(input.lines().collect());
 
     let commands = parser::parse(program)?;
 
-    println!("{commands:?}");
+    let output = code_writer::translate(commands, name)?; 
 
-    Ok(String::from(""))
+    //println!("{output}");
+
+    Ok(output)
 }

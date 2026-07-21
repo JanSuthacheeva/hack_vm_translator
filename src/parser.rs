@@ -14,13 +14,13 @@ pub enum Command {
 
 #[derive(PartialEq, Debug)]
 pub struct PushPop {
-    segment: String,
-    i: u16,
+    pub segment: String,
+    pub i: u16,
 }
 
 #[derive(PartialEq, Debug)]
 pub struct Arithmetic {
-    instruction: String,
+    pub instruction: String,
 }
 
 pub fn parse(program: Vec<&str>) -> Result<Vec<Command>, Box<dyn Error>> {
