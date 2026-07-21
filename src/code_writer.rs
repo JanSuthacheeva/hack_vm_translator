@@ -7,7 +7,7 @@ pub fn translate(commands: Vec<Command>, name: &str) -> Result<String, Box<dyn E
 
     let mut res = String::from("");
     let mut assembly_code = String::from("");
-    let mut i: u16 = 1;
+    let mut i: u16 = 0;
     for command in commands {
         match command {
             Command::Arithmetic(c) => {
@@ -29,53 +29,54 @@ pub fn translate(commands: Vec<Command>, name: &str) -> Result<String, Box<dyn E
 fn translate_arithmetic(command: Arithmetic, i: &mut u16) -> String {
 
     let mut comment = "";
-    let mut operation = String::from("");
+    let mut operation = "";
 
     match command.instruction.as_str() {
         "add" => {
             comment = "add";
-            operation = String::from("M=D+M");
+            operation = "M=D+M";
         },
         "sub" => {
             comment = "sub";
-            operation = String::from("M=M-D");
+            operation = "M=M-D";
         },
         "and" => {
             comment = "and";
-            operation = String::from("M=D&M");
+            operation = "M=D&M";
         },
         "or" => {
             comment = "or";
-            operation = String::from("M=D|M");
+            operation = "M=D|M";
         },
         "neg" => {
             comment = "neg";
-            operation = String::from("M=-M");
+            operation = "M=-M";
         },
         "eq" => {
             comment = "eq";
-            operation = format!("D=M-D\n@EQ_{i}\nD;JNE\n@0\nA=M\nM=-1\n@END_EQ_{i}\n0;JMP\n(EQ_{i})\n@0\nA=M\nM=0\n(END_EQ_{i})");
-            *i = *i + 1;
+            operation = "JNE";
         },
         "gt" => {
             comment = "gt";
-            operation = format!("D=M-D\n@GT_{i}\nD;JLE\n@0\nA=M\nM=-1\n@END_GT_{i}\n0;JMP\n(GT_{i})\n@0\nA=M\nM=0\n(END_GT_{i})");
-            *i = *i + 1;
+            operation = "JLE";
         },
         "lt" => {
             comment = "lt";
-            operation = format!("D=M-D\n@LT_{i}\nD;JGE\n@0\nA=M\nM=-1\n@END_LT_{i}\n0;JMP\n(LT_{i})\n@0\nA=M\nM=0\n(END_LT_{i})");
-            *i = *i + 1;
+            operation = "JGE";
         },
         "not" => {
             comment = "not";
-            operation = String::from("M=!M");
+            operation = "M=!M";
         }
 
         _ => (),
         }
     if ["neg", "not"].contains(&comment) {
         return format!("// {comment}\n@SP\nM=M-1\nA=M\n{operation}\n@SP\nM=M+1");
+    }
+    if ["eq", "gt", "lt"].contains(&comment) {
+        *i = *i + 1;
+        return format!("// {comment}\n@SP\nM=M-1\nD=M\nA=D\nD=M\n@SP\nM=M-1\nA=M\nD=M-D\n@LBL_{i}\nD;{operation}\n@0\nA=M\nM=-1\n@END_LBL_{i}\n0;JMP\n(LBL_{i})\n@0\nA=M\nM=0\n(END_LBL_{i})\n@SP\nM=M+1");
     }
 
     format!("// {comment}\n@SP\nM=M-1\nD=M\nA=D\nD=M\n@SP\nM=M-1\nA=M\n{operation}\n@SP\nM=M+1")
