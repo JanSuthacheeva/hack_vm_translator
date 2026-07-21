@@ -7,10 +7,11 @@ pub fn translate(commands: Vec<Command>, name: &str) -> Result<String, Box<dyn E
 
     let mut res = String::from("");
     let mut assembly_code = String::from("");
+    let mut i: u16 = 1;
     for command in commands {
         match command {
             Command::Arithmetic(c) => {
-                assembly_code = translate_arithmetic(c);
+                assembly_code = translate_arithmetic(c, &mut i);
             }
             Command::Push(c) => {
                 assembly_code = translate_push(c, name);
@@ -25,24 +26,59 @@ pub fn translate(commands: Vec<Command>, name: &str) -> Result<String, Box<dyn E
     Ok(res)
 }
 
-fn translate_arithmetic(command: Arithmetic) -> String {
+fn translate_arithmetic(command: Arithmetic, i: &mut u16) -> String {
 
     let mut comment = "";
-    let mut operation = "";
+    let mut operation = String::from("");
 
     match command.instruction.as_str() {
         "add" => {
             comment = "add";
-            operation = "M=M+D";
+            operation = String::from("M=D+M");
         },
         "sub" => {
             comment = "sub";
-            operation = "M=M-D";
+            operation = String::from("M=M-D");
         },
-        _ => (),
+        "and" => {
+            comment = "and";
+            operation = String::from("M=D&M");
+        },
+        "or" => {
+            comment = "or";
+            operation = String::from("M=D|M");
+        },
+        "neg" => {
+            comment = "neg";
+            operation = String::from("M=-M");
+        },
+        "eq" => {
+            comment = "eq";
+            operation = format!("D=M-D\n@EQ_{i}\nD;JNE\n@0\nA=M\nM=-1\n@END_EQ_{i}\n0;JMP\n(EQ_{i})\n@0\nA=M\nM=0\n(END_EQ_{i})");
+            *i = *i + 1;
+        },
+        "gt" => {
+            comment = "gt";
+            operation = format!("D=M-D\n@GT_{i}\nD;JLE\n@0\nA=M\nM=-1\n@END_GT_{i}\n0;JMP\n(GT_{i})\n@0\nA=M\nM=0\n(END_GT_{i})");
+            *i = *i + 1;
+        },
+        "lt" => {
+            comment = "lt";
+            operation = format!("D=M-D\n@LT_{i}\nD;JGE\n@0\nA=M\nM=-1\n@END_LT_{i}\n0;JMP\n(LT_{i})\n@0\nA=M\nM=0\n(END_LT_{i})");
+            *i = *i + 1;
+        },
+        "not" => {
+            comment = "not";
+            operation = String::from("M=!M");
         }
 
-    format!("// {comment}\n@SP\nM=M-1\nD=M\nA=D\nD=M\n@SP\n{operation}\n@SP\nM=M+1")
+        _ => (),
+        }
+    if ["neg", "not"].contains(&comment) {
+        return format!("// {comment}\n@SP\nM=M-1\nA=M\n{operation}\n@SP\nM=M+1");
+    }
+
+    format!("// {comment}\n@SP\nM=M-1\nD=M\nA=D\nD=M\n@SP\nM=M-1\nA=M\n{operation}\n@SP\nM=M+1")
 }
 
 fn translate_push(command: PushPop, name: &str) -> String {
