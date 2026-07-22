@@ -46,87 +46,51 @@ fn translate_arithmetic(command: Arithmetic, i: &mut u16) -> String {
 fn translate_push(command: PushPop, name: &str) -> String {
     let segment = command.segment;
     let i = command.i;
-    let mut addr = String::from("");
-    let mut loc = String::from("");
 
-    match segment {
-        Segment::Constant => {
-            return format!("// push {segment} {i}\n@{i}\nD=A\n@SP\nA=M\nM=D\n@SP\nM=M+1\n");
-        }
-        Segment::Temp => {
-            addr = (5 + i).to_string();
-        }
-        Segment::Static => {
-            addr = format!("{name}.{i}");
-        }
-        Segment::Pointer => {
-            addr = if i == 0 {
-                "THIS".to_string()
-            } else {
-                "THAT".to_string()
-            };
-        }
-        Segment::Local => {
-            loc = "LCL".to_string();
-        }
-        Segment::Argument => {
-            loc = "ARG".to_string();
-        }
-        Segment::This => {
-            loc = "THIS".to_string();
-        }
-        Segment::That => {
-            loc = "THAT".to_string();
-        }
-    };
-    if loc != String::from("") {
-        return format!(
-            "// push {segment} {i}\n@{i}\nD=A\n@{loc}\nD=D+M\nA=D\nD=M\n@SP\nA=M\nM=D\n@SP\nM=M+1\n"
-        );
+    if segment == Segment::Constant {
+        return format!("// push {segment} {i}\n@{i}\nD=A\n@SP\nA=M\nM=D\n@SP\nM=M+1\n");
     }
 
-    format!("// push {segment} {i}\n@{addr}\nD=M\n@SP\nA=M\nM=D\n@SP\nM=M+1\n")
+    let addr = match segment {
+        Segment::Temp =>  (5 + i).to_string(),
+        Segment::Static => format!("{name}.{i}"),
+        Segment::Pointer => if i == 0 { "THIS".to_string() } else { "THAT".to_string() },
+        Segment::Local => "LCL".to_string(),
+        Segment::Argument => "ARG".to_string(),
+        Segment::This => "THIS".to_string(),
+        Segment::That => "THAT".to_string(),
+        Segment::Constant => unreachable!("should have returned already")
+    };
+
+    match segment {
+        Segment::Local|Segment::Argument|Segment::This|Segment::That => format!(
+            "// push {segment} {i}\n@{i}\nD=A\n@{addr}\nD=D+M\nA=D\nD=M\n@SP\nA=M\nM=D\n@SP\nM=M+1\n"
+        ),
+        Segment::Temp|Segment::Static|Segment::Pointer => format!("// push {segment} {i}\n@{addr}\nD=M\n@SP\nA=M\nM=D\n@SP\nM=M+1\n"),
+        Segment::Constant => unreachable!("should have returned already")
+    }
 }
 
 fn translate_pop(command: PushPop, name: &str) -> String {
-    let mut addr = String::from("");
-    let mut loc = String::from("");
     let segment = command.segment;
     let i = command.i;
 
-    match segment {
-        Segment::Temp => {
-            addr = (5 + i).to_string();
-        }
-        Segment::Static => {
-            addr = format!("{name}.{i}");
-        }
-        Segment::Pointer => {
-            addr = if i == 0 {
-                "THIS".to_string()
-            } else {
-                "THAT".to_string()
-            };
-        }
-        Segment::Local => {
-            loc = "LCL".to_string();
-        }
-        Segment::Argument => {
-            loc = "ARG".to_string();
-        }
-        Segment::This => {
-            loc = "THIS".to_string();
-        }
-        Segment::That => {
-            loc = "THAT".to_string();
-        }
-        _ => (),
+    let addr = match segment {
+        Segment::Temp => (5 + i).to_string(),
+        Segment::Static => format!("{name}.{i}"),
+        Segment::Pointer => if i == 0 { "THIS".to_string() } else { "THAT".to_string() },
+        Segment::Local => "LCL".to_string(),
+        Segment::Argument => "ARG".to_string(),
+        Segment::This => "THIS".to_string(),
+        Segment::That => "THAT".to_string(),
+        Segment::Constant => unreachable!("Cannot to pop a constant")
     };
-    if loc != "" {
-        return format!(
-            "// pop {segment} {i}\n@{i}\nD=A\n@{loc}\nD=D+M\n@var\nM=D\n@SP\nM=M-1\nD=M\nA=D\nD=M\n@var\nA=M\nM=D\n"
-        );
-    }
 
-    format!("// pop {segment} {i}\n@SP\nM=M-1\nD=M\nA=D\nD=M\n@{addr}\nM=D\n")
+    match segment {
+        Segment::Local|Segment::Argument|Segment::This|Segment::That => format!(
+            "// pop {segment} {i}\n@{i}\nD=A\n@{addr}\nD=D+M\n@var\nM=D\n@SP\nM=M-1\nD=M\nA=D\nD=M\n@var\nA=M\nM=D\n"
+        ),
+        Segment::Temp|Segment::Static|Segment::Pointer => format!("// pop {segment} {i}\n@SP\nM=M-1\nD=M\nA=D\nD=M\n@{addr}\nM=D\n"),
+        _ => unreachable!("unknown segment")
+    }
 }
