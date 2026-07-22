@@ -1,6 +1,6 @@
 
 use std::error::Error;
-use crate::parser::{Command, Arithmetic, PushPop};
+use crate::parser::{Command, Arithmetic, PushPop, Segment};
 
 
 pub fn translate(commands: Vec<Command>, name: &str) -> Result<String, Box<dyn Error>> {
@@ -90,32 +90,31 @@ fn translate_push(command: PushPop, name: &str) -> String {
     let mut loc = String::from("");
 
 
-    match segment.as_str() {
-        "constant" => {
+    match segment {
+        Segment::Constant => {
             return format!("// push {segment} {i}\n@{i}\nD=A\n@SP\nA=M\nM=D\n@SP\nM=M+1\n");
         },
-        "temp" => {
+        Segment::Temp => {
             addr = (5 + i).to_string();
         }
-        "static" => {
+        Segment::Static => {
             addr = format!("{name}.{i}");
         },
-        "pointer" => {
+        Segment::Pointer => {
             addr = if i == 0 { "THIS".to_string() } else { "THAT".to_string() };
         },
-        "local" => {
+        Segment::Local => {
             loc = "LCL".to_string();
         },
-        "argument" => {
+        Segment::Argument => {
             loc = "ARG".to_string();
         }
-        "this" => {
+        Segment::This => {
             loc = "THIS".to_string();
         },
-        "that" => {
+        Segment::That => {
             loc = "THAT".to_string();
         },
-        _ => (),
     };
     if loc != String::from("") {
         return format!("// push {segment} {i}\n@{i}\nD=A\n@{loc}\nD=D+M\nA=D\nD=M\n@SP\nA=M\nM=D\n@SP\nM=M+1\n");
@@ -131,29 +130,29 @@ fn translate_pop(command: PushPop, name: &str) -> String {
     let i = command.i;
 
 
-    match segment.as_str() {
-        "temp" => {
+    match segment {
+        Segment::Temp => {
             addr = (5 + i).to_string();
         }
-        "static" => {
+        Segment::Static => {
             addr = format!("{name}.{i}");
         },
-        "pointer" => {
+        Segment::Pointer => {
             addr = if i == 0 { "THIS".to_string() } else { "THAT".to_string() };
         },
-        "local" => {
+        Segment::Local => {
             loc = "LCL".to_string();
         },
-        "argument" => {
+        Segment::Argument => {
             loc = "ARG".to_string();
         }
-        "this" => {
+        Segment::This => {
             loc = "THIS".to_string();
         },
-        "that" => {
+        Segment::That => {
             loc = "THAT".to_string();
         },
-        _ => (),
+        _ => ()
     };
     if loc != "" {
         return format!("// pop {segment} {i}\n@{i}\nD=A\n@{loc}\nD=D+M\n@var\nM=D\n@SP\nM=M-1\nD=M\nA=D\nD=M\n@var\nA=M\nM=D\n");

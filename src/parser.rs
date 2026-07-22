@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::fmt;
 
 #[derive(PartialEq, Debug)]
 pub enum Command {
@@ -13,8 +14,56 @@ pub enum Command {
 }
 
 #[derive(PartialEq, Debug)]
+pub enum Segment {
+    Local,
+    Argument,
+    This,
+    That,
+    Constant,
+    Static,
+    Temp,
+    Pointer
+}
+
+impl Segment {
+    fn get(seg: &str) -> Result<Segment, Box<dyn Error>> {
+       match seg {
+           "local" => Ok(Segment::Local),
+           "argument" => Ok(Segment::Argument),
+           "this" => Ok(Segment::This),
+           "that" => Ok(Segment::That),
+           "constant" => Ok(Segment::Constant),
+           "static" => Ok(Segment::Static),
+           "temp" => Ok(Segment::Temp),
+           "pointer" => Ok(Segment::Pointer),
+           _ => Err("Invalid segment: {segment}".into())
+       }
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            Segment::Local => "local",
+            Segment::Argument => "argument",
+            Segment::This => "this",
+            Segment::That => "that",
+            Segment::Constant => "constant",
+            Segment::Static => "static",
+            Segment::Temp => "temp",
+            Segment::Pointer => "pointer",
+        }
+    }
+}
+
+impl fmt::Display for Segment {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+
+#[derive(PartialEq, Debug)]
 pub struct PushPop {
-    pub segment: String,
+    pub segment: Segment,
     pub i: u16,
 }
 
@@ -62,11 +111,8 @@ fn handle_arithmetic_command(line: &str) -> Result<Command, Box<dyn Error>> {
 }
 
 fn handle_memory_command(elements: Vec<&str>) -> Result<Command, Box<dyn Error>> {
-    let segments = ["local", "argument", "this", "that", "constant", "static", "temp", "pointer"];
-    if !segments.contains(&elements[1]) {
-        return Err("Invalid segment: {segment}".into());
-    }
-    let segment = String::from(elements[1]);
+    let segment = Segment::get(elements[1])?;
+
     let i: u16 = elements[2].parse().unwrap();
     
     let pp = PushPop {
@@ -76,8 +122,8 @@ fn handle_memory_command(elements: Vec<&str>) -> Result<Command, Box<dyn Error>>
     
     return match elements[0] {
         "pop" => {
-            match pp.segment.as_str() {
-                "constant" => Err("Invalid: pop constant".into()),
+            match pp.segment {
+                Segment::Constant => Err("Invalid: pop constant".into()),
                 _ => Ok(Command::Pop(pp)),
             }
         },
@@ -105,7 +151,7 @@ mod tests {
     fn translates_pop_command() {
         let input = "pop this 6";
         let want = Command::Pop(PushPop {
-            segment: String::from("this"),
+            segment: Segment::This,
             i: 6,
         });
         assert_eq!(want, parse_line(input).unwrap());
@@ -115,7 +161,7 @@ mod tests {
     fn translates_push_command() {
         let input = "push this 6";
         let want = Command::Push(PushPop {
-            segment: String::from("this"),
+            segment: Segment::This,
             i: 6,
         });
         assert_eq!(want, parse_line(input).unwrap());
