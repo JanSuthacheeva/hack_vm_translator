@@ -1,6 +1,6 @@
 pub fn clean_program(lines: Vec<&str>) -> Vec<&str> {
     let mut instructions: Vec<&str> = vec![];
-    let delimiter = "//"; 
+    let delimiter = "//";
 
     for l in lines {
         let code = match l.split_once(delimiter) {

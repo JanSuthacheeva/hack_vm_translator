@@ -10,8 +10,9 @@ pub enum Command {
     If,
     Function,
     Return,
-    Call
+    Call,
 }
+
 
 #[derive(PartialEq, Debug)]
 pub enum Segment {
@@ -22,22 +23,22 @@ pub enum Segment {
     Constant,
     Static,
     Temp,
-    Pointer
+    Pointer,
 }
 
 impl Segment {
     fn get(seg: &str) -> Result<Segment, Box<dyn Error>> {
-       match seg {
-           "local" => Ok(Segment::Local),
-           "argument" => Ok(Segment::Argument),
-           "this" => Ok(Segment::This),
-           "that" => Ok(Segment::That),
-           "constant" => Ok(Segment::Constant),
-           "static" => Ok(Segment::Static),
-           "temp" => Ok(Segment::Temp),
-           "pointer" => Ok(Segment::Pointer),
-           _ => Err(format!("Invalid segment: {seg}").into())
-       }
+        match seg {
+            "local" => Ok(Segment::Local),
+            "argument" => Ok(Segment::Argument),
+            "this" => Ok(Segment::This),
+            "that" => Ok(Segment::That),
+            "constant" => Ok(Segment::Constant),
+            "static" => Ok(Segment::Static),
+            "temp" => Ok(Segment::Temp),
+            "pointer" => Ok(Segment::Pointer),
+            _ => Err(format!("Invalid segment: {seg}").into()),
+        }
     }
 
     fn as_str(&self) -> &'static str {
@@ -60,7 +61,6 @@ impl fmt::Display for Segment {
     }
 }
 
-
 #[derive(PartialEq, Debug)]
 pub struct PushPop {
     pub segment: Segment,
@@ -68,9 +68,55 @@ pub struct PushPop {
 }
 
 #[derive(PartialEq, Debug)]
-pub struct Arithmetic {
-    pub instruction: String,
+pub enum Arithmetic {
+    Add,
+    Sub,
+    Neg,
+    Eq,
+    Gt,
+    Lt,
+    And,
+    Or,
+    Not
 }
+
+impl Arithmetic {
+    fn get(cmd: &str) -> Result<Arithmetic, Box<dyn Error>> {
+        match cmd {
+            "add" => Ok(Arithmetic::Add),
+            "sub" => Ok(Arithmetic::Sub),
+            "neg" => Ok(Arithmetic::Neg),
+            "eq" => Ok(Arithmetic::Eq),
+            "gt" => Ok(Arithmetic::Gt),
+            "lt" => Ok(Arithmetic::Lt),
+            "and" => Ok(Arithmetic::And),
+            "or" => Ok(Arithmetic::Or),
+            "not" => Ok(Arithmetic::Not),
+            _ => Err(format!("Invalid command: {cmd}").into()),
+        }
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            Arithmetic::Add => "add",
+            Arithmetic::Sub => "sub",
+            Arithmetic::Neg => "neg",
+            Arithmetic::Eq => "eq",
+            Arithmetic::Gt => "gt",
+            Arithmetic::Lt => "lt",
+            Arithmetic::And => "and",
+            Arithmetic::Or => "or",
+            Arithmetic::Not => "not",
+        }
+    }
+}
+
+impl fmt::Display for Arithmetic {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 
 pub fn parse(program: Vec<&str>) -> Result<Vec<Command>, Box<dyn Error>> {
     let mut result: Vec<Command> = vec![];
@@ -83,69 +129,50 @@ pub fn parse(program: Vec<&str>) -> Result<Vec<Command>, Box<dyn Error>> {
 }
 
 fn parse_line(line: &str) -> Result<Command, Box<dyn Error>> {
-
     let elements = line.split_whitespace();
 
     match elements.clone().count() {
         1 => handle_arithmetic_command(line),
-        3 => {
-            handle_memory_command(elements.collect())
-        },
+        3 => handle_memory_command(elements.collect()),
         _ => Err(format!("Invalid command: {line}").into()),
     }
 }
 
 fn handle_arithmetic_command(line: &str) -> Result<Command, Box<dyn Error>> {
-    let valid_commands = ["add", "sub", "neg", "eq", "gt", "lt", "and", "or", "not"];
-    if !valid_commands.contains(&line) {
-        return Err(format!("Invalid command: {line}").into());
-    }
-
-    Ok(Command::Arithmetic(
-            Arithmetic {
-                instruction: String::from(line)
-            }
-            )
-        )
-
+    let cmd = Arithmetic::get(line)?;
+    Ok(Command::Arithmetic(cmd))
 }
 
 fn handle_memory_command(elements: Vec<&str>) -> Result<Command, Box<dyn Error>> {
     let segment = Segment::get(elements[1])?;
 
     let i: u16 = elements[2].parse()?;
-    
+
     match segment {
         Segment::Temp => {
             if i > 7 {
                 return Err(format!("Invalid {segment} number: {i}").into());
             }
-        },
+        }
         Segment::Pointer => {
             if i > 1 {
                 return Err(format!("Invalid {segment} number: {i}").into());
             }
-        },
+        }
         _ => (),
     }
 
-    let pp = PushPop {
-        segment,
-        i
-    };
-    
+    let pp = PushPop { segment, i };
+
     return match elements[0] {
-        "pop" => {
-            match pp.segment {
-                Segment::Constant => Err("Invalid: pop constant".into()),
-                _ => Ok(Command::Pop(pp)),
-            }
+        "pop" => match pp.segment {
+            Segment::Constant => Err("Invalid: pop constant".into()),
+            _ => Ok(Command::Pop(pp)),
         },
         "push" => Ok(Command::Push(pp)),
         _ => Err("Invalid command".into()),
     };
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -154,11 +181,8 @@ mod tests {
     #[test]
     fn translates_arithmetic_command() {
         let input = "add";
-        let want = Command::Arithmetic(Arithmetic {
-            instruction: String::from("add"),
-        });
+        let want = Command::Arithmetic(Arithmetic::Add);
         assert_eq!(want, parse_line(input).unwrap());
-
     }
 
     #[test]
@@ -179,7 +203,6 @@ mod tests {
             i: 6,
         });
         assert_eq!(want, parse_line(input).unwrap());
-
     }
 
     #[test]

@@ -1,9 +1,9 @@
-use std::error::Error;
-use std::env;
-use std::fs;
-use std::process;
-use std::path::{PathBuf};
 use hack_vm_translator::translate;
+use std::env;
+use std::error::Error;
+use std::fs;
+use std::path::PathBuf;
+use std::process;
 
 fn main() {
     let config = Config::build(env::args()).unwrap_or_else(|err| {
@@ -18,18 +18,18 @@ fn main() {
 }
 
 fn run(config: Config) -> Result<(), Box<dyn Error>> {
-
     let input = fs::read_to_string(&config.input_file)?;
 
-    let file_name = config.input_file.file_stem().and_then(|x| x.to_str()).ok_or("Error extracting input file name:")?;
+    let file_name = config
+        .input_file
+        .file_stem()
+        .and_then(|x| x.to_str())
+        .ok_or("Error extracting input file name:")?;
 
+    let output = translate(&input, file_name)?;
 
-        let output = translate(&input, file_name)?;
-
-        fs::write(config.output_file, output)?;
-        Ok(())
-
-
+    fs::write(config.output_file, output)?;
+    Ok(())
 }
 
 struct Config {
@@ -38,7 +38,6 @@ struct Config {
 }
 
 impl Config {
-
     fn build(mut args: impl Iterator<Item = String>) -> Result<Config, Box<dyn Error>> {
         args.next();
 
@@ -52,7 +51,6 @@ impl Config {
             .ok_or("input must be a .vm file")?;
 
         let output_file = format!("{stem}.asm");
-
 
         Ok(Config {
             input_file: input_file.into(),
