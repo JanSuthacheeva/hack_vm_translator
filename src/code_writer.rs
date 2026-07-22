@@ -6,22 +6,16 @@ use crate::parser::{Command, Arithmetic, PushPop, Segment};
 pub fn translate(commands: Vec<Command>, name: &str) -> Result<String, Box<dyn Error>> {
 
     let mut res = String::from("");
-    let mut assembly_code = String::from("");
     let mut i: u16 = 0;
     for command in commands {
-        match command {
-            Command::Arithmetic(c) => {
-                assembly_code = translate_arithmetic(c, &mut i);
-            }
-            Command::Push(c) => {
-                assembly_code = translate_push(c, name);
-            },
-            Command::Pop(c) => {
-                assembly_code = translate_pop(c, name);
-            },
-            _ => ()
+        let assembly_code = match command {
+            Command::Arithmetic(c) =>translate_arithmetic(c, &mut i),
+            Command::Push(c) => translate_push(c, name),
+            Command::Pop(c) => translate_pop(c, name),
+            _ => String::from("")
         };
-        res = format!("{res}\n{assembly_code}");
+        res.push_str("\n");
+        res.push_str(&assembly_code);
     }
     Ok(res)
 }
@@ -72,14 +66,14 @@ fn translate_arithmetic(command: Arithmetic, i: &mut u16) -> String {
         _ => (),
         }
     if ["neg", "not"].contains(&comment) {
-        return format!("// {comment}\n@SP\nM=M-1\nA=M\n{operation}\n@SP\nM=M+1");
+        return format!("// {comment}\n@SP\nM=M-1\nA=M\n{operation}\n@SP\nM=M+1\n");
     }
     if ["eq", "gt", "lt"].contains(&comment) {
         *i = *i + 1;
-        return format!("// {comment}\n@SP\nM=M-1\nD=M\nA=D\nD=M\n@SP\nM=M-1\nA=M\nD=M-D\n@LBL_{i}\nD;{operation}\n@0\nA=M\nM=-1\n@END_LBL_{i}\n0;JMP\n(LBL_{i})\n@0\nA=M\nM=0\n(END_LBL_{i})\n@SP\nM=M+1");
+        return format!("// {comment}\n@SP\nM=M-1\nD=M\nA=D\nD=M\n@SP\nM=M-1\nA=M\nD=M-D\n@LBL_{i}\nD;{operation}\n@0\nA=M\nM=-1\n@END_LBL_{i}\n0;JMP\n(LBL_{i})\n@0\nA=M\nM=0\n(END_LBL_{i})\n@SP\nM=M+1\n");
     }
 
-    format!("// {comment}\n@SP\nM=M-1\nD=M\nA=D\nD=M\n@SP\nM=M-1\nA=M\n{operation}\n@SP\nM=M+1")
+    format!("// {comment}\n@SP\nM=M-1\nD=M\nA=D\nD=M\n@SP\nM=M-1\nA=M\n{operation}\n@SP\nM=M+1\n")
 }
 
 fn translate_push(command: PushPop, name: &str) -> String {

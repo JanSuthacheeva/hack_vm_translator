@@ -36,7 +36,7 @@ impl Segment {
            "static" => Ok(Segment::Static),
            "temp" => Ok(Segment::Temp),
            "pointer" => Ok(Segment::Pointer),
-           _ => Err("Invalid segment: {segment}".into())
+           _ => Err(format!("Invalid segment: {seg}").into())
        }
     }
 
@@ -91,14 +91,14 @@ fn parse_line(line: &str) -> Result<Command, Box<dyn Error>> {
         3 => {
             handle_memory_command(elements.collect())
         },
-        _ => Err("Invalid command: {line}".into()),
+        _ => Err(format!("Invalid command: {line}").into()),
     }
 }
 
 fn handle_arithmetic_command(line: &str) -> Result<Command, Box<dyn Error>> {
     let valid_commands = ["add", "sub", "neg", "eq", "gt", "lt", "and", "or", "not"];
     if !valid_commands.contains(&line) {
-        return Err("Invalid command: {line}".into());
+        return Err(format!("Invalid command: {line}").into());
     }
 
     Ok(Command::Arithmetic(
@@ -113,8 +113,22 @@ fn handle_arithmetic_command(line: &str) -> Result<Command, Box<dyn Error>> {
 fn handle_memory_command(elements: Vec<&str>) -> Result<Command, Box<dyn Error>> {
     let segment = Segment::get(elements[1])?;
 
-    let i: u16 = elements[2].parse().unwrap();
+    let i: u16 = elements[2].parse()?;
     
+    match segment {
+        Segment::Temp => {
+            if i > 7 {
+                return Err(format!("Invalid {segment} number: {i}").into());
+            }
+        },
+        Segment::Pointer => {
+            if i > 1 {
+                return Err(format!("Invalid {segment} number: {i}").into());
+            }
+        },
+        _ => (),
+    }
+
     let pp = PushPop {
         segment,
         i
@@ -128,7 +142,7 @@ fn handle_memory_command(elements: Vec<&str>) -> Result<Command, Box<dyn Error>>
             }
         },
         "push" => Ok(Command::Push(pp)),
-        _ => Err("Invalid command: {line}".into()),
+        _ => Err("Invalid command".into()),
     };
 }
 

@@ -21,11 +21,15 @@ fn run(config: Config) -> Result<(), Box<dyn Error>> {
 
     let input = fs::read_to_string(&config.input_file)?;
 
-    let output = translate(&input, config.input_file.to_str().unwrap())?;
+    let file_name = config.input_file.file_stem().and_then(|x| x.to_str()).ok_or("Error extracting input file name:")?;
 
-    fs::write(config.output_file, output)?;
 
-    Ok(())
+        let output = translate(&input, file_name)?;
+
+        fs::write(config.output_file, output)?;
+        Ok(())
+
+
 }
 
 struct Config {
