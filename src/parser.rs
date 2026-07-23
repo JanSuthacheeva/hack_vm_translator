@@ -6,13 +6,12 @@ pub enum Command {
     Arithmetic(Arithmetic),
     Push(PushPop),
     Pop(PushPop),
-    Goto,
-    If,
-    Function,
-    Return,
-    Call,
+    //Goto,
+    //If,
+    //Function,
+    //Return,
+    //Call,
 }
-
 
 #[derive(PartialEq, Debug)]
 pub enum Segment {
@@ -77,7 +76,7 @@ pub enum Arithmetic {
     Lt,
     And,
     Or,
-    Not
+    Not,
 }
 
 impl Arithmetic {
@@ -117,7 +116,6 @@ impl fmt::Display for Arithmetic {
     }
 }
 
-
 pub fn parse(program: Vec<&str>) -> Result<Vec<Command>, Box<dyn Error>> {
     let mut result: Vec<Command> = vec![];
     for line in program {
@@ -129,11 +127,11 @@ pub fn parse(program: Vec<&str>) -> Result<Vec<Command>, Box<dyn Error>> {
 }
 
 fn parse_line(line: &str) -> Result<Command, Box<dyn Error>> {
-    let elements = line.split_whitespace();
+    let elements: Vec<&str> = line.split_whitespace().collect();
 
-    match elements.clone().count() {
+    match elements.len() {
         1 => handle_arithmetic_command(line),
-        3 => handle_memory_command(elements.collect()),
+        3 => handle_memory_command(elements),
         _ => Err(format!("Invalid command: {line}").into()),
     }
 }
@@ -149,29 +147,25 @@ fn handle_memory_command(elements: Vec<&str>) -> Result<Command, Box<dyn Error>>
     let i: u16 = elements[2].parse()?;
 
     match segment {
-        Segment::Temp => {
-            if i > 7 {
-                return Err(format!("Invalid {segment} number: {i}").into());
-            }
+        Segment::Temp if i > 7 => {
+            return Err(format!("Invalid {segment} number: {i}").into());
         }
-        Segment::Pointer => {
-            if i > 1 {
-                return Err(format!("Invalid {segment} number: {i}").into());
-            }
+        Segment::Pointer if i > 1 => {
+            return Err(format!("Invalid {segment} number: {i}").into());
         }
         _ => (),
-    }
+    };
 
     let pp = PushPop { segment, i };
 
-    return match elements[0] {
+    match elements[0] {
         "pop" => match pp.segment {
             Segment::Constant => Err("Invalid: pop constant".into()),
             _ => Ok(Command::Pop(pp)),
         },
         "push" => Ok(Command::Push(pp)),
         _ => Err("Invalid command".into()),
-    };
+    }
 }
 
 #[cfg(test)]

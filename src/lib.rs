@@ -5,7 +5,7 @@ mod code_writer;
 mod parser;
 
 pub fn translate(input: &str, name: &str) -> Result<String, Box<dyn Error>> {
-    let program = cleaner::clean_program(input.lines().collect());
+    let program = cleaner::clean_program(input);
 
     let commands = parser::parse(program)?;
 
