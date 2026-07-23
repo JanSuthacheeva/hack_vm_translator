@@ -212,6 +212,38 @@ mod tests {
     }
 
     #[test]
+    fn works_on_temp_boundary() {
+        let input = "push temp 7";
+        let want = Command::Push(PushPop {
+            segment: Segment::Temp,
+            i: 7,
+        });
+        assert_eq!(parse_line(input).unwrap(), want);
+    }
+
+    #[test]
+    fn errors_past_temp_boundary() {
+        let input = "push temp 8";
+        assert!(parse_line(input).is_err());
+    }
+
+    #[test]
+    fn works_on_pointer_boundary() {
+        let input = "push pointer 1";
+        let want = Command::Push(PushPop {
+            segment: Segment::Pointer,
+            i: 1,
+        });
+        assert_eq!(parse_line(input).unwrap(), want);
+    }
+
+    #[test]
+    fn errors_past_pointer_boundary() {
+        let input = "push pointer 2";
+        assert!(parse_line(input).is_err());
+    }
+
+    #[test]
     fn errors_on_pop_constant() {
         let input = "pop constant 6";
         assert!(handle_memory_command(input.split_whitespace().collect()).is_err());
