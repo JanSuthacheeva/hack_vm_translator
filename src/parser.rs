@@ -6,8 +6,7 @@ pub enum Command {
     Arithmetic(Arithmetic),
     Push(PushPop),
     Pop(PushPop),
-    //Goto,
-    //If,
+    Branching(Branching),
     //Function,
     //Return,
     //Call,
@@ -24,6 +23,7 @@ pub enum Segment {
     Temp,
     Pointer,
 }
+
 
 impl Segment {
     fn get(seg: &str) -> Result<Segment, Box<dyn Error>> {
@@ -116,6 +116,45 @@ impl fmt::Display for Arithmetic {
     }
 }
 
+#[derive(PartialEq, Debug)]
+pub enum BranchingCommand {
+    Goto,
+    IfGoto,
+    Label,
+}
+
+
+#[derive(PartialEq, Debug)]
+pub struct Branching {
+    pub command: BranchingCommand,
+    pub label: String,
+}
+
+
+impl BranchingCommand {
+    fn get(cmd: &str) -> Result<BranchingCommand, Box<dyn Error>> {
+        match cmd {
+            "goto" => Ok(BranchingCommand::Goto),
+            "if-goto" => Ok(BranchingCommand::IfGoto),
+            "label" => Ok(BranchingCommand::Label),
+            _ => Err(format!("Invalid command: {cmd}").into()),
+        }
+    }
+    fn as_str(&self) -> &'static str {
+        match self {
+            BranchingCommand::Label => "label",
+            BranchingCommand::Goto => "goto",
+            BranchingCommand::IfGoto => "if-goto",
+        }
+    }
+}
+
+impl fmt::Display for BranchingCommand {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 pub fn parse(program: Vec<&str>) -> Result<Vec<Command>, Box<dyn Error>> {
     let mut result: Vec<Command> = vec![];
     for line in program {
@@ -131,6 +170,7 @@ fn parse_line(line: &str) -> Result<Command, Box<dyn Error>> {
 
     match elements.len() {
         1 => handle_arithmetic_command(line),
+        2 => handle_branching_command(elements),
         3 => handle_memory_command(elements),
         _ => Err(format!("Invalid command: {line}").into()),
     }
@@ -166,6 +206,19 @@ fn handle_memory_command(elements: Vec<&str>) -> Result<Command, Box<dyn Error>>
         "push" => Ok(Command::Push(pp)),
         _ => Err("Invalid command".into()),
     }
+}
+
+fn handle_branching_command(elements: Vec<&str>) -> Result<Command, Box<dyn Error>> {
+    let command = BranchingCommand::get(elements[0])?;
+
+    let label = String::from(elements[1]);
+
+    let branching = Branching {
+        command,
+        label
+    };
+
+    Ok(Command::Branching(branching))
 }
 
 #[cfg(test)]

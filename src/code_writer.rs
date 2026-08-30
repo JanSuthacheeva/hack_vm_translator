@@ -1,4 +1,4 @@
-use crate::parser::{Arithmetic, Command, PushPop, Segment};
+use crate::parser::{Arithmetic, Branching, BranchingCommand, Command, PushPop, Segment};
 use std::error::Error;
 
 pub fn translate(commands: Vec<Command>, name: &str) -> Result<String, Box<dyn Error>> {
@@ -9,11 +9,22 @@ pub fn translate(commands: Vec<Command>, name: &str) -> Result<String, Box<dyn E
             Command::Arithmetic(c) => translate_arithmetic(c, &mut i),
             Command::Push(c) => translate_push(c, name),
             Command::Pop(c) => translate_pop(c, name),
+            Command::Branching(c) => translate_branching(c),
         };
         res.push('\n');
         res.push_str(&assembly_code);
     }
     Ok(res)
+}
+
+fn translate_branching(command: Branching) -> String {
+    let label = command.label;
+    let cmd = command.command;
+    match cmd {
+        BranchingCommand::Label => format!("// {cmd}\n({label})\n"),
+        BranchingCommand::Goto => format!("// {cmd}\n@{label}\n0;JMP\n"),
+        BranchingCommand::IfGoto => format!("// {cmd}\n@SP\nM=M-1\nA=M\nD=M\n@{label}\nD;JNE\n"),
+    }
 }
 
 fn translate_arithmetic(command: Arithmetic, i: &mut u16) -> String {
