@@ -7,7 +7,7 @@ pub enum Command {
     Push(PushPop),
     Pop(PushPop),
     Branching(Branching),
-    //Function,
+    Function(Function),
     //Return,
     //Call,
 }
@@ -155,6 +155,13 @@ impl fmt::Display for BranchingCommand {
     }
 }
 
+
+#[derive(PartialEq, Debug)]
+pub struct Function {
+    pub name: String,
+    pub n_vars: u16,
+}
+
 pub fn parse(program: Vec<&str>) -> Result<Vec<Command>, Box<dyn Error>> {
     let mut result: Vec<Command> = vec![];
     for line in program {
@@ -171,7 +178,12 @@ fn parse_line(line: &str) -> Result<Command, Box<dyn Error>> {
     match elements.len() {
         1 => handle_arithmetic_command(line),
         2 => handle_branching_command(elements),
-        3 => handle_memory_command(elements),
+        3 => {
+            if elements[1] == "function" {
+                return handle_function_command(elements);
+            }
+            handle_memory_command(elements)
+       },
         _ => Err(format!("Invalid command: {line}").into()),
     }
 }
@@ -179,6 +191,14 @@ fn parse_line(line: &str) -> Result<Command, Box<dyn Error>> {
 fn handle_arithmetic_command(line: &str) -> Result<Command, Box<dyn Error>> {
     let cmd = Arithmetic::get(line)?;
     Ok(Command::Arithmetic(cmd))
+}
+
+fn handle_function_command(elements: Vec<&str>) -> Result<Command, Box<dyn Error>> {
+    let n_vars: u16 = elements[2].parse()?;
+    Ok(Command::Function(Function {
+        name: String::from(elements[1]),
+        n_vars
+    }))
 }
 
 fn handle_memory_command(elements: Vec<&str>) -> Result<Command, Box<dyn Error>> {
