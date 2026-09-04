@@ -1,4 +1,4 @@
-use crate::parser::{Arithmetic, Branching, BranchingCommand, Command, Function, PushPop, Segment};
+use crate::parser::{Arithmetic, Branching, BranchingCommand, Call, Command, Function, PushPop, Segment};
 use std::error::Error;
 
 pub fn translate(commands: Vec<Command>, name: &str) -> Result<String, Box<dyn Error>> {
@@ -12,53 +12,12 @@ pub fn translate(commands: Vec<Command>, name: &str) -> Result<String, Box<dyn E
             Command::Branching(c) => translate_branching(c),
             Command::Function(c) => translate_function(c, name),
             Command::Return => translate_return(name),
+            Command::Call(c) => translate_call(c, name),
         };
         res.push('\n');
         res.push_str(&assembly_code);
     }
     Ok(res)
-}
-
-fn translate_branching(command: Branching) -> String {
-    let label = command.label;
-    let cmd = command.command;
-    match cmd {
-        BranchingCommand::Label => format!("// {cmd} {label}\n({label})\n"),
-        BranchingCommand::Goto => format!("// {cmd} {label}\n@{label}\n0;JMP\n"),
-        BranchingCommand::IfGoto => format!("// {cmd} {label}\n@SP\nM=M-1\nA=M\nD=M\n@{label}\nD;JNE\n"),
-    }
-}
-
-fn translate_function(command: Function, name: &str) -> String {
-    let fn_name = command.name;
-    let n_vars = command.n_vars;
-    let mut res = format!("// function {name}.{fn_name} {n_vars}\n");
-    for _n in 0..command.n_vars {
-        let pp = PushPop {
-            segment: Segment::Constant,
-            i: 0,
-        };
-        res.push_str(&translate_push(pp, &name));
-    }
-
-    res
-}
-
-fn translate_return(name: &str) -> String {
-    let mut res = String::from("// return\n//  endFrame = LCL\n@LCL\nD=M\n@R14\nM=D\n//   retAddr = *(endFrame - 5)\n@5\nD=A\n@R14\nD=M-D\n@R15\nM=D\n");
-    let pp = PushPop {
-        segment: Segment::Argument,
-        i: 0,
-    };
-    res.push_str(&translate_pop(pp, &name));
-    res.push_str("//    SP = ARG + 1\n@ARG\nD=M+1\n@SP\nM=D\n");
-    res.push_str("//    THAT = *(endFrame - 1)\n@1\nD=A\n@R14\nD=M-D\nA=D\nD=M\n@THAT\nM=D\n");
-    res.push_str("//    THIS = *(endFrame - 2)\n@2\nD=A\n@R14\nD=M-D\nA=D\nD=M\n@THIS\nM=D\n");
-    res.push_str("//    ARG = *(endFrame - 3)\n@3\nD=A\n@R14\nD=M-D\nA=D\nD=M\n@ARG\nM=D\n");
-    res.push_str("//    LCL = *(endFrame - 4)\n@4\nD=A\n@R14\nD=M-D\nA=D\nD=M\n@LCL\nM=D\n");
-    res.push_str("//    goto retAddr\n@R15\nA=M\n0;JMP\n");
-
-    res
 }
 
 fn translate_arithmetic(command: Arithmetic, i: &mut u16) -> String {
@@ -89,6 +48,80 @@ fn translate_arithmetic(command: Arithmetic, i: &mut u16) -> String {
         ),
     }
 }
+
+fn translate_branching(command: Branching) -> String {
+    let label = command.label;
+    let cmd = command.command;
+    match cmd {
+        BranchingCommand::Label => format!("// {cmd} {label}\n({label})\n"),
+        BranchingCommand::Goto => format!("// {cmd} {label}\n@{label}\n0;JMP\n"),
+        BranchingCommand::IfGoto => format!("// {cmd} {label}\n@SP\nM=M-1\nA=M\nD=M\n@{label}\nD;JNE\n"),
+    }
+}
+
+fn translate_call(command: Call, name: &str) -> String {
+    let fn_name = command.name;
+    let n_args = command.n_args;
+    let mut res = format!("// call {name}.{fn_name} {n_args}\n");
+    res.push_str(&format!("//   push returnAddress\n@{name}.{fn_name}_retAddr\nD=A\n@SP\nA=M\nM=D\n@SP\nM=M+1\n"));
+    res.push_str("//   push LCL\n@LCL\nD=M\n@SP\nA=M\nM=D\n@SP\nM=M+1\n");
+    res.push_str("//   push ARG\n@ARG\nD=M\n@SP\nA=M\nM=D\n@SP\nM=M+1\n");
+    res.push_str("//   push THIS\n@THIS\nD=M\n@SP\nA=M\nM=D\n@SP\nM=M+1\n");
+    res.push_str("//   push THAT\n@THAT\nD=M\n@SP\nA=M\nM=D\n@SP\nM=M+1\n");
+    res.push_str(&format!("//   ARG = SP - nArgs\n@{n_args}\nD=A\n@SP\nD=M-D\n@ARG=M=D\n"));
+    res.push_str("//   LCL = SP\n@SP\nD=M\n@LCL\nM=D\n");
+    res.push_str(&format!("//   label returnAddress\n({name}.{fn_name}_retAddr)\n"));
+
+    res
+}
+
+fn translate_function(command: Function, name: &str) -> String {
+    let fn_name = command.name;
+    let n_vars = command.n_vars;
+    let mut res = format!("// function {name}.{fn_name} {n_vars}\n");
+    for _n in 0..command.n_vars {
+        let pp = PushPop {
+            segment: Segment::Constant,
+            i: 0,
+        };
+        res.push_str(&translate_push(pp, name));
+    }
+
+    res
+}
+
+fn translate_pop(command: PushPop, name: &str) -> String {
+    let segment = command.segment;
+    let i = command.i;
+
+    let addr = match segment {
+        Segment::Temp => (5 + i).to_string(),
+        Segment::Static => format!("{name}.{i}"),
+        Segment::Pointer => {
+            if i == 0 {
+                "THIS".to_string()
+            } else {
+                "THAT".to_string()
+            }
+        }
+        Segment::Local => "LCL".to_string(),
+        Segment::Argument => "ARG".to_string(),
+        Segment::This => "THIS".to_string(),
+        Segment::That => "THAT".to_string(),
+        Segment::Constant => unreachable!("Cannot pop a constant"),
+    };
+
+    match segment {
+        Segment::Local | Segment::Argument | Segment::This | Segment::That => format!(
+            "// pop {segment} {i}\n@{i}\nD=A\n@{addr}\nD=D+M\n@R13\nM=D\n@SP\nM=M-1\nD=M\nA=D\nD=M\n@R13\nA=M\nM=D\n"
+        ),
+        Segment::Temp | Segment::Static | Segment::Pointer => {
+            format!("// pop {segment} {i}\n@SP\nM=M-1\nD=M\nA=D\nD=M\n@{addr}\nM=D\n")
+        }
+        Segment::Constant => unreachable!("Cannot pop a constant"),
+    }
+}
+
 
 fn translate_push(command: PushPop, name: &str) -> String {
     let segment = command.segment;
@@ -126,36 +159,22 @@ fn translate_push(command: PushPop, name: &str) -> String {
     }
 }
 
-fn translate_pop(command: PushPop, name: &str) -> String {
-    let segment = command.segment;
-    let i = command.i;
 
-    let addr = match segment {
-        Segment::Temp => (5 + i).to_string(),
-        Segment::Static => format!("{name}.{i}"),
-        Segment::Pointer => {
-            if i == 0 {
-                "THIS".to_string()
-            } else {
-                "THAT".to_string()
-            }
-        }
-        Segment::Local => "LCL".to_string(),
-        Segment::Argument => "ARG".to_string(),
-        Segment::This => "THIS".to_string(),
-        Segment::That => "THAT".to_string(),
-        Segment::Constant => unreachable!("Cannot pop a constant"),
+fn translate_return(name: &str) -> String {
+    let mut res = String::from("// return\n//  endFrame = LCL\n@LCL\nD=M\n@R14\nM=D\n//   retAddr = *(endFrame - 5)\n@5\nD=A\n@R14\nD=M-D\n@R15\nM=D\n");
+    let pp = PushPop {
+        segment: Segment::Argument,
+        i: 0,
     };
+    res.push_str(&translate_pop(pp, name));
+    res.push_str("//    SP = ARG + 1\n@ARG\nD=M+1\n@SP\nM=D\n");
+    res.push_str("//    THAT = *(endFrame - 1)\n@1\nD=A\n@R14\nD=M-D\nA=D\nD=M\n@THAT\nM=D\n");
+    res.push_str("//    THIS = *(endFrame - 2)\n@2\nD=A\n@R14\nD=M-D\nA=D\nD=M\n@THIS\nM=D\n");
+    res.push_str("//    ARG = *(endFrame - 3)\n@3\nD=A\n@R14\nD=M-D\nA=D\nD=M\n@ARG\nM=D\n");
+    res.push_str("//    LCL = *(endFrame - 4)\n@4\nD=A\n@R14\nD=M-D\nA=D\nD=M\n@LCL\nM=D\n");
+    res.push_str("//    goto retAddr\n@R15\nA=M\n0;JMP\n");
 
-    match segment {
-        Segment::Local | Segment::Argument | Segment::This | Segment::That => format!(
-            "// pop {segment} {i}\n@{i}\nD=A\n@{addr}\nD=D+M\n@R13\nM=D\n@SP\nM=M-1\nD=M\nA=D\nD=M\n@R13\nA=M\nM=D\n"
-        ),
-        Segment::Temp | Segment::Static | Segment::Pointer => {
-            format!("// pop {segment} {i}\n@SP\nM=M-1\nD=M\nA=D\nD=M\n@{addr}\nM=D\n")
-        }
-        Segment::Constant => unreachable!("Cannot pop a constant"),
-    }
+    res
 }
 
 #[cfg(test)]
