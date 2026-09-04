@@ -9,7 +9,113 @@ pub enum Command {
     Branching(Branching),
     Function(Function),
     Return,
-    //Call,
+    Call(Call),
+}
+
+impl Arithmetic {
+    fn get(cmd: &str) -> Result<Arithmetic, Box<dyn Error>> {
+        match cmd {
+            "add" => Ok(Arithmetic::Add),
+            "sub" => Ok(Arithmetic::Sub),
+            "neg" => Ok(Arithmetic::Neg),
+            "eq" => Ok(Arithmetic::Eq),
+            "gt" => Ok(Arithmetic::Gt),
+            "lt" => Ok(Arithmetic::Lt),
+            "and" => Ok(Arithmetic::And),
+            "or" => Ok(Arithmetic::Or),
+            "not" => Ok(Arithmetic::Not),
+            _ => Err(format!("Invalid command: {cmd}").into()),
+        }
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            Arithmetic::Add => "add",
+            Arithmetic::Sub => "sub",
+            Arithmetic::Neg => "neg",
+            Arithmetic::Eq => "eq",
+            Arithmetic::Gt => "gt",
+            Arithmetic::Lt => "lt",
+            Arithmetic::And => "and",
+            Arithmetic::Or => "or",
+            Arithmetic::Not => "not",
+        }
+    }
+}
+
+impl fmt::Display for Arithmetic {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+
+#[derive(PartialEq, Debug)]
+pub struct Branching {
+    pub command: BranchingCommand,
+    pub label: String,
+}
+
+#[derive(PartialEq, Debug)]
+pub enum BranchingCommand {
+    Goto,
+    IfGoto,
+    Label,
+}
+
+impl BranchingCommand {
+    fn get(cmd: &str) -> Result<BranchingCommand, Box<dyn Error>> {
+        match cmd {
+            "goto" => Ok(BranchingCommand::Goto),
+            "if-goto" => Ok(BranchingCommand::IfGoto),
+            "label" => Ok(BranchingCommand::Label),
+            _ => Err(format!("Invalid command: {cmd}").into()),
+        }
+    }
+    fn as_str(&self) -> &'static str {
+        match self {
+            BranchingCommand::Label => "label",
+            BranchingCommand::Goto => "goto",
+            BranchingCommand::IfGoto => "if-goto",
+        }
+    }
+}
+
+impl fmt::Display for BranchingCommand {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+#[derive(PartialEq, Debug)]
+pub struct Call {
+    pub name: String,
+    pub n_args: u16,
+}
+
+#[derive(PartialEq, Debug)]
+pub struct Function {
+    pub name: String,
+    pub n_vars: u16,
+}
+
+#[derive(PartialEq, Debug)]
+pub struct PushPop {
+    pub segment: Segment,
+    pub i: u16,
+}
+
+#[derive(PartialEq, Debug)]
+pub enum Arithmetic {
+    Add,
+    Sub,
+    Neg,
+    Eq,
+    Gt,
+    Lt,
+    And,
+    Or,
+    Not,
 }
 
 #[derive(PartialEq, Debug)]
@@ -60,108 +166,6 @@ impl fmt::Display for Segment {
     }
 }
 
-#[derive(PartialEq, Debug)]
-pub struct PushPop {
-    pub segment: Segment,
-    pub i: u16,
-}
-
-#[derive(PartialEq, Debug)]
-pub enum Arithmetic {
-    Add,
-    Sub,
-    Neg,
-    Eq,
-    Gt,
-    Lt,
-    And,
-    Or,
-    Not,
-}
-
-impl Arithmetic {
-    fn get(cmd: &str) -> Result<Arithmetic, Box<dyn Error>> {
-        match cmd {
-            "add" => Ok(Arithmetic::Add),
-            "sub" => Ok(Arithmetic::Sub),
-            "neg" => Ok(Arithmetic::Neg),
-            "eq" => Ok(Arithmetic::Eq),
-            "gt" => Ok(Arithmetic::Gt),
-            "lt" => Ok(Arithmetic::Lt),
-            "and" => Ok(Arithmetic::And),
-            "or" => Ok(Arithmetic::Or),
-            "not" => Ok(Arithmetic::Not),
-            _ => Err(format!("Invalid command: {cmd}").into()),
-        }
-    }
-
-    fn as_str(&self) -> &'static str {
-        match self {
-            Arithmetic::Add => "add",
-            Arithmetic::Sub => "sub",
-            Arithmetic::Neg => "neg",
-            Arithmetic::Eq => "eq",
-            Arithmetic::Gt => "gt",
-            Arithmetic::Lt => "lt",
-            Arithmetic::And => "and",
-            Arithmetic::Or => "or",
-            Arithmetic::Not => "not",
-        }
-    }
-}
-
-impl fmt::Display for Arithmetic {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-#[derive(PartialEq, Debug)]
-pub enum BranchingCommand {
-    Goto,
-    IfGoto,
-    Label,
-}
-
-
-#[derive(PartialEq, Debug)]
-pub struct Branching {
-    pub command: BranchingCommand,
-    pub label: String,
-}
-
-
-impl BranchingCommand {
-    fn get(cmd: &str) -> Result<BranchingCommand, Box<dyn Error>> {
-        match cmd {
-            "goto" => Ok(BranchingCommand::Goto),
-            "if-goto" => Ok(BranchingCommand::IfGoto),
-            "label" => Ok(BranchingCommand::Label),
-            _ => Err(format!("Invalid command: {cmd}").into()),
-        }
-    }
-    fn as_str(&self) -> &'static str {
-        match self {
-            BranchingCommand::Label => "label",
-            BranchingCommand::Goto => "goto",
-            BranchingCommand::IfGoto => "if-goto",
-        }
-    }
-}
-
-impl fmt::Display for BranchingCommand {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-
-#[derive(PartialEq, Debug)]
-pub struct Function {
-    pub name: String,
-    pub n_vars: u16,
-}
-
 pub fn parse(program: Vec<&str>) -> Result<Vec<Command>, Box<dyn Error>> {
     let mut result: Vec<Command> = vec![];
     for line in program {
@@ -187,6 +191,9 @@ fn parse_line(line: &str) -> Result<Command, Box<dyn Error>> {
             if elements[0] == "function" {
                 return handle_function_command(elements);
             }
+            if elements[0] == "call" {
+                return handle_call_command(elements);
+            }
             handle_memory_command(elements)
        },
         _ => Err(format!("Invalid command: {line}").into()),
@@ -204,6 +211,14 @@ fn handle_function_command(elements: Vec<&str>) -> Result<Command, Box<dyn Error
     Ok(Command::Function(Function {
         name: String::from(elements[1]),
         n_vars
+    }))
+}
+
+fn handle_call_command(elements: Vec<&str>) -> Result<Command, Box<dyn Error>> {
+    let n_args: u16 = elements[2].parse()?;
+    Ok(Command::Call(Call {
+        name: String::from(elements[1]),
+        n_args
     }))
 }
 
