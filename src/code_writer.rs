@@ -11,6 +11,7 @@ pub fn translate(commands: Vec<Command>, name: &str) -> Result<String, Box<dyn E
             Command::Pop(c) => translate_pop(c, name),
             Command::Branching(c) => translate_branching(c),
             Command::Function(c) => translate_function(c, name),
+            Command::Return => translate_return(name),
         };
         res.push('\n');
         res.push_str(&assembly_code);
@@ -22,14 +23,16 @@ fn translate_branching(command: Branching) -> String {
     let label = command.label;
     let cmd = command.command;
     match cmd {
-        BranchingCommand::Label => format!("// {cmd}\n({label})\n"),
-        BranchingCommand::Goto => format!("// {cmd}\n@{label}\n0;JMP\n"),
-        BranchingCommand::IfGoto => format!("// {cmd}\n@SP\nM=M-1\nA=M\nD=M\n@{label}\nD;JNE\n"),
+        BranchingCommand::Label => format!("// {cmd} {label}\n({label})\n"),
+        BranchingCommand::Goto => format!("// {cmd} {label}\n@{label}\n0;JMP\n"),
+        BranchingCommand::IfGoto => format!("// {cmd} {label}\n@SP\nM=M-1\nA=M\nD=M\n@{label}\nD;JNE\n"),
     }
 }
 
 fn translate_function(command: Function, name: &str) -> String {
-    let mut res = String::from("// {command}");
+    let fn_name = command.name;
+    let n_vars = command.n_vars;
+    let mut res = format!("// function {name}.{fn_name} {n_vars}\n");
     for _n in 0..command.n_vars {
         let pp = PushPop {
             segment: Segment::Constant,
@@ -37,6 +40,23 @@ fn translate_function(command: Function, name: &str) -> String {
         };
         res.push_str(&translate_push(pp, &name));
     }
+
+    res
+}
+
+fn translate_return(name: &str) -> String {
+    let mut res = String::from("// return\n//  endFrame = LCL\n@LCL\nD=M\n@R14\nM=D\n//   retAddr = *(endFrame - 5)\n@5\nD=A\n@R14\nD=M-D\n@R15\nM=D\n");
+    let pp = PushPop {
+        segment: Segment::Argument,
+        i: 0,
+    };
+    res.push_str(&translate_pop(pp, &name));
+    res.push_str("//    SP = ARG + 1\n@ARG\nD=M+1\n@SP\nM=D\n");
+    res.push_str("//    THAT = *(endFrame - 1)\n@1\nD=A\n@R14\nD=M-D\nA=D\nD=M\n@THAT\nM=D\n");
+    res.push_str("//    THIS = *(endFrame - 2)\n@2\nD=A\n@R14\nD=M-D\nA=D\nD=M\n@THIS\nM=D\n");
+    res.push_str("//    ARG = *(endFrame - 3)\n@3\nD=A\n@R14\nD=M-D\nA=D\nD=M\n@ARG\nM=D\n");
+    res.push_str("//    LCL = *(endFrame - 4)\n@4\nD=A\n@R14\nD=M-D\nA=D\nD=M\n@LCL\nM=D\n");
+    res.push_str("//    goto retAddr\n@R15\nA=M\n0;JMP\n");
 
     res
 }
@@ -211,6 +231,20 @@ mod tests {
     }
 
     #[test]
+    fn translate_function_emits_command() {
+        let input = Function {
+            name: String::from("test"),
+            n_vars: 3
+        };
+        let name = "testName";
+        assert_eq!(
+            translate_function(input, &name),
+            "// function testName.test 3\n// push constant 0\n@0\nD=A\n@SP\nA=M\nM=D\n@SP\nM=M+1\n// push constant 0\n@0\nD=A\n@SP\nA=M\nM=D\n@SP\nM=M+1\n// push constant 0\n@0\nD=A\n@SP\nA=M\nM=D\n@SP\nM=M+1\n"
+
+        );
+    }
+
+    #[test]
     fn translates_chained_commands() {
         let input = vec![
             Command::Push(PushPop {
@@ -222,6 +256,51 @@ mod tests {
         assert_eq!(
             translate(input, "").unwrap(),
             "\n// push constant 2\n@2\nD=A\n@SP\nA=M\nM=D\n@SP\nM=M+1\n\n// add\n@SP\nM=M-1\nD=M\nA=D\nD=M\n@SP\nM=M-1\nA=M\nM=D+M\n@SP\nM=M+1\n"
+        );
+    }
+
+    #[test]
+    fn translate_branching_emits_label_command() {
+        let input = Branching {
+            command: BranchingCommand::Label,
+            label: String::from("testLabel")
+        };
+        assert_eq!(
+            translate_branching(input),
+            "// label testLabel\n(testLabel)\n"
+        );
+    }
+
+    #[test]
+    fn translate_branching_emits_goto_command() {
+        let input = Branching {
+            command: BranchingCommand::Goto,
+            label: String::from("testLabel")
+        };
+        assert_eq!(
+            translate_branching(input),
+            "// goto testLabel\n@testLabel\n0;JMP\n"
+        );
+    }
+
+    #[test]
+    fn translate_branching_emits_if_goto_command() {
+        let input = Branching {
+            command: BranchingCommand::IfGoto,
+            label: String::from("testLabel")
+        };
+        assert_eq!(
+            translate_branching(input),
+            "// if-goto testLabel\n@SP\nM=M-1\nA=M\nD=M\n@testLabel\nD;JNE\n"
+        );
+    }
+
+    #[test]
+    fn translate_return_emits_proper_command() {
+        let input = "testFile";
+        assert_eq!(
+            translate_return(input),
+            "// return\n//  endFrame = LCL\n@LCL\nD=M\n@R14\nM=D\n//   retAddr = *(endFrame - 5)\n@5\nD=A\n@R14\nD=M-D\n@R15\nM=D\n// pop argument 0\n@0\nD=A\n@ARG\nD=D+M\n@R13\nM=D\n@SP\nM=M-1\nD=M\nA=D\nD=M\n@R13\nA=M\nM=D\n//    SP = ARG + 1\n@ARG\nD=M+1\n@SP\nM=D\n//    THAT = *(endFrame - 1)\n@1\nD=A\n@R14\nD=M-D\nA=D\nD=M\n@THAT\nM=D\n//    THIS = *(endFrame - 2)\n@2\nD=A\n@R14\nD=M-D\nA=D\nD=M\n@THIS\nM=D\n//    ARG = *(endFrame - 3)\n@3\nD=A\n@R14\nD=M-D\nA=D\nD=M\n@ARG\nM=D\n//    LCL = *(endFrame - 4)\n@4\nD=A\n@R14\nD=M-D\nA=D\nD=M\n@LCL\nM=D\n//    goto retAddr\n@R15\nA=M\n0;JMP\n"
         );
     }
 }

@@ -8,7 +8,7 @@ pub enum Command {
     Pop(PushPop),
     Branching(Branching),
     Function(Function),
-    //Return,
+    Return,
     //Call,
 }
 
@@ -176,10 +176,15 @@ fn parse_line(line: &str) -> Result<Command, Box<dyn Error>> {
     let elements: Vec<&str> = line.split_whitespace().collect();
 
     match elements.len() {
-        1 => handle_arithmetic_command(line),
+        1 => {
+            if elements[0] == "return" {
+               return Ok(Command::Return)
+            }
+            handle_arithmetic_command(line)
+        },
         2 => handle_branching_command(elements),
         3 => {
-            if elements[1] == "function" {
+            if elements[0] == "function" {
                 return handle_function_command(elements);
             }
             handle_memory_command(elements)
@@ -187,6 +192,7 @@ fn parse_line(line: &str) -> Result<Command, Box<dyn Error>> {
         _ => Err(format!("Invalid command: {line}").into()),
     }
 }
+
 
 fn handle_arithmetic_command(line: &str) -> Result<Command, Box<dyn Error>> {
     let cmd = Arithmetic::get(line)?;
