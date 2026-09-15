@@ -1,4 +1,4 @@
-use hack_vm_translator::translate;
+use hack_vm_translator::{translate, initialize};
 use std::env;
 use std::error::Error;
 use std::fs;
@@ -18,18 +18,17 @@ fn main() {
 }
 
 fn run(config: Config) -> Result<(), Box<dyn Error>> {
-    let mut output = String::from("");
+    let mut output = initialize()?;
+
     for input_file in &config.input_files {
         let input = fs::read_to_string(input_file)?;
 
-        let name: &str = if input_file.is_relative() {
-            input_file.strip_prefix("./")
-                .expect("could not strip prefix")
-                .to_str().
-                ok_or("Could not transform input file to str")?
-        } else {
-            input_file.to_str().ok_or("Could not transform input file to str")?
-        };
+
+        let name: &str = input_file.strip_prefix(&config.parent)
+            .expect("could not strip prefix")
+            .to_str()
+            .ok_or("Could not transform input file to str")?;
+
         output.push_str(&format!("// {name}\n"));
         let file_output = translate(&input, name)?;
 
@@ -45,6 +44,7 @@ fn run(config: Config) -> Result<(), Box<dyn Error>> {
 struct Config {
     input_files: Vec<PathBuf>,
     output_file: PathBuf,
+    parent: PathBuf,
 }
 
 impl Config {
@@ -63,17 +63,27 @@ impl Config {
                 return Err("input must be a directory of .vm file".into());
             }
 
+            let parent = path.parent().ok_or("Error extracting root directory name.")?.to_path_buf();
+
             return Ok(Config {
                 input_files: vec![path.to_path_buf()],
                 output_file: path.with_extension("asm").into(),
+                parent
             })
         } 
         if path.is_dir() {
+            // find Sys.vm
+            let sys_vm = path.join("Sys.vm");
+            if !sys_vm.is_file() {
+                    return Err(format!("no Sys.vm found in directory {path:?}").into());
+            }
+            let parent = sys_vm.parent().ok_or("Error extracting root directory name.")?.to_path_buf();
             let mut input_files: Vec<PathBuf> = vec![];
             handle_dir(path, &mut input_files);
             return Ok(Config {
                 input_files,
                 output_file: path.with_extension("asm").into(),
+                parent
             });
         }
 

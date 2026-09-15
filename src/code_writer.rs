@@ -13,7 +13,7 @@ pub fn translate(commands: Vec<Command>, name: &str) -> Result<String, Box<dyn E
             Command::Branching(c) => translate_branching(c),
             Command::Function(c) => translate_function(c, name),
             Command::Return => translate_return(name),
-            Command::Call(c) => translate_call(c, name),
+            Command::Call(c) => translate_call(c),
         };
         res.push('\n');
         res.push_str(&assembly_code);
@@ -60,13 +60,13 @@ fn translate_branching(command: Branching) -> String {
     }
 }
 
-fn translate_call(command: Call, name: &str) -> String {
+fn translate_call(command: Call) -> String {
     let fn_name = command.name;
     let n_args = command.n_args;
     let id = Uuid::new_v4();
-    let mut unique_ra = format!("{name}_{fn_name}_ra_{id}");
+    let mut unique_ra = format!("{fn_name}_ra_{id}");
     unique_ra = unique_ra.replace('.', "_").replace('-', "_").replace('/', "_");
-    let mut res = format!("// call {name}.{fn_name} {n_args}\n");
+    let mut res = format!("// call {fn_name} {n_args}\n");
     res.push_str(&format!("//   push returnAddress\n@{unique_ra}\nD=A\n@SP\nA=M\nM=D\n@SP\nM=M+1\n"));
     res.push_str("//   push LCL\n@LCL\nD=M\n@SP\nA=M\nM=D\n@SP\nM=M+1\n");
     res.push_str("//   push ARG\n@ARG\nD=M\n@SP\nA=M\nM=D\n@SP\nM=M+1\n");
@@ -74,6 +74,7 @@ fn translate_call(command: Call, name: &str) -> String {
     res.push_str("//   push THAT\n@THAT\nD=M\n@SP\nA=M\nM=D\n@SP\nM=M+1\n");
     res.push_str(&format!("//   ARG = SP - nArgs\n@{n_args}\nD=A\n@SP\nD=M-D\n@ARG\nM=D\n"));
     res.push_str("//   LCL = SP\n@SP\nD=M\n@LCL\nM=D\n");
+    res.push_str(&format!("//   goto {fn_name}\n @{fn_name}\n0;JMP\n"));
     res.push_str(&format!("//   label returnAddress\n({unique_ra})\n"));
 
     res
@@ -82,7 +83,7 @@ fn translate_call(command: Call, name: &str) -> String {
 fn translate_function(command: Function, name: &str) -> String {
     let fn_name = command.name;
     let n_vars = command.n_vars;
-    let mut res = format!("// function {name}.{fn_name} {n_vars}\n");
+    let mut res = format!("// function {fn_name} {n_vars}\n({fn_name})");
     for _n in 0..command.n_vars {
         let pp = PushPop {
             segment: Segment::Constant,
