@@ -72,7 +72,7 @@ fn translate_call(command: Call) -> String {
     res.push_str("//   push ARG\n@ARG\nD=M\n@SP\nA=M\nM=D\n@SP\nM=M+1\n");
     res.push_str("//   push THIS\n@THIS\nD=M\n@SP\nA=M\nM=D\n@SP\nM=M+1\n");
     res.push_str("//   push THAT\n@THAT\nD=M\n@SP\nA=M\nM=D\n@SP\nM=M+1\n");
-    res.push_str(&format!("//   ARG = SP - nArgs\n@{n_args}\nD=A\n@SP\nD=M-D\n@ARG\nM=D\n"));
+    res.push_str(&format!("//   ARG = SP - nArgs - 5\n@{n_args}\nD=A\n@SP\nD=M-D\n@ARG\nM=D\n@5\nD=A\n@ARG\nM=M-D\n"));
     res.push_str("//   LCL = SP\n@SP\nD=M\n@LCL\nM=D\n");
     res.push_str(&format!("//   goto {fn_name}\n @{fn_name}\n0;JMP\n"));
     res.push_str(&format!("//   label returnAddress\n({unique_ra})\n"));
@@ -83,7 +83,7 @@ fn translate_call(command: Call) -> String {
 fn translate_function(command: Function, name: &str) -> String {
     let fn_name = command.name;
     let n_vars = command.n_vars;
-    let mut res = format!("// function {fn_name} {n_vars}\n({fn_name})");
+    let mut res = format!("// function {fn_name} {n_vars}\n({fn_name})\n");
     for _n in 0..command.n_vars {
         let pp = PushPop {
             segment: Segment::Constant,
