@@ -18,7 +18,7 @@ fn main() {
 }
 
 fn run(config: Config) -> Result<(), Box<dyn Error>> {
-    let mut output = if config.folder { initialize() } else { String::from("") };
+    let mut output = if config.input_files.len() > 1 { initialize() } else { String::from("") };
 
     for input_file in &config.input_files {
         let input = fs::read_to_string(input_file)?;
@@ -45,7 +45,6 @@ struct Config {
     input_files: Vec<PathBuf>,
     output_file: PathBuf,
     parent: PathBuf,
-    folder: bool,
 }
 
 impl Config {
@@ -69,8 +68,7 @@ impl Config {
             return Ok(Config {
                 input_files: vec![path.to_path_buf()],
                 output_file: path.with_extension("asm").into(),
-                parent,
-                folder: false,
+                parent
             })
         } 
         if path.is_dir() {
@@ -85,8 +83,7 @@ impl Config {
             return Ok(Config {
                 input_files,
                 output_file: path.with_extension("asm").into(),
-                parent,
-                folder: true,
+                parent
             });
         }
 
