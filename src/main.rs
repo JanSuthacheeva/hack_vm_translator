@@ -33,7 +33,7 @@ fn run(config: Config) -> Result<(), Box<dyn Error>> {
         let file_output = translate(&input, name)?;
 
         output.push_str(&file_output);
-        output.push_str("\n");
+        output.push('\n');
     }
 
 
@@ -67,7 +67,7 @@ impl Config {
 
             return Ok(Config {
                 input_files: vec![path.to_path_buf()],
-                output_file: path.with_extension("asm").into(),
+                output_file: path.with_extension("asm"),
                 parent
             })
         } 
@@ -82,28 +82,24 @@ impl Config {
             handle_dir(path, &mut input_files);
             return Ok(Config {
                 input_files,
-                output_file: path.with_extension("asm").into(),
+                output_file: path.with_extension("asm"),
                 parent
             });
         }
 
-        return Err("test".into());
+        Err("test".into())
         
     }
 }
 
 fn handle_dir(path: &Path, input_files: &mut Vec<PathBuf>) {
-    for entry in path.read_dir().expect("Failed to read directory") {
-        if let Ok(entry) = entry {
-                let path = entry.path();
-                if path.is_file() {
-                    if path.extension().unwrap() == "vm" {
-                        input_files.push(path.to_path_buf());
-                    }
-                }
-                if path.is_dir() {
-                    handle_dir(&path, input_files);
-                }
+    for entry in path.read_dir().expect("Failed to read directory").flatten() {
+        let path = entry.path();
+        if path.is_file() && path.extension().unwrap() == "vm" {
+                input_files.push(path.to_path_buf());
+        }
+        if path.is_dir() {
+            handle_dir(&path, input_files);
         }
     }
 }
