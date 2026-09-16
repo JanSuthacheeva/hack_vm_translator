@@ -65,7 +65,7 @@ fn translate_call(command: Call) -> String {
     let n_args = command.n_args;
     let id = Uuid::new_v4();
     let mut unique_ra = format!("{fn_name}_ra_{id}");
-    unique_ra = unique_ra.replace('.', "_").replace('-', "_").replace('/', "_");
+    unique_ra = unique_ra.replace(['.', '-', '/'], "_");
     let mut res = format!("// call {fn_name} {n_args}\n");
     res.push_str(&format!("//   push returnAddress\n@{unique_ra}\nD=A\n@SP\nA=M\nM=D\n@SP\nM=M+1\n"));
     res.push_str("//   push LCL\n@LCL\nD=M\n@SP\nA=M\nM=D\n@SP\nM=M+1\n");
@@ -83,7 +83,7 @@ fn translate_call(command: Call) -> String {
 fn translate_function(command: Function, name: &str) -> String {
     let fn_name = command.name;
     let n_vars = command.n_vars;
-    let mut res = format!("// function {fn_name} {n_vars}\n({fn_name})\n");
+    let mut res = format!("// function {name}.{fn_name} {n_vars}\n({name}.{fn_name})\n");
     for _n in 0..command.n_vars {
         let pp = PushPop {
             segment: Segment::Constant,
@@ -263,7 +263,7 @@ mod tests {
         let name = "testName";
         assert_eq!(
             translate_function(input, &name),
-            "// function testName.test 3\n// push constant 0\n@0\nD=A\n@SP\nA=M\nM=D\n@SP\nM=M+1\n// push constant 0\n@0\nD=A\n@SP\nA=M\nM=D\n@SP\nM=M+1\n// push constant 0\n@0\nD=A\n@SP\nA=M\nM=D\n@SP\nM=M+1\n"
+            "// function testName.test 3\n(testName.test)\n// push constant 0\n@0\nD=A\n@SP\nA=M\nM=D\n@SP\nM=M+1\n// push constant 0\n@0\nD=A\n@SP\nA=M\nM=D\n@SP\nM=M+1\n// push constant 0\n@0\nD=A\n@SP\nA=M\nM=D\n@SP\nM=M+1\n"
 
         );
     }
@@ -324,7 +324,7 @@ mod tests {
         let input = "testFile";
         assert_eq!(
             translate_return(input),
-            "// return\n//  endFrame = LCL\n@LCL\nD=M\n@R14\nM=D\n//   retAddr = *(endFrame - 5)\n@5\nD=A\n@R14\nD=M-D\n@R15\nM=D\n// pop argument 0\n@0\nD=A\n@ARG\nD=D+M\n@R13\nM=D\n@SP\nM=M-1\nD=M\nA=D\nD=M\n@R13\nA=M\nM=D\n//    SP = ARG + 1\n@ARG\nD=M+1\n@SP\nM=D\n//    THAT = *(endFrame - 1)\n@1\nD=A\n@R14\nD=M-D\nA=D\nD=M\n@THAT\nM=D\n//    THIS = *(endFrame - 2)\n@2\nD=A\n@R14\nD=M-D\nA=D\nD=M\n@THIS\nM=D\n//    ARG = *(endFrame - 3)\n@3\nD=A\n@R14\nD=M-D\nA=D\nD=M\n@ARG\nM=D\n//    LCL = *(endFrame - 4)\n@4\nD=A\n@R14\nD=M-D\nA=D\nD=M\n@LCL\nM=D\n//    goto retAddr\n@R15\nA=M\n0;JMP\n"
+            "// return\n//  endFrame = LCL\n@LCL\nD=M\n@R14\nM=D\n//   retAddr = *(endFrame - 5)\n@5\nD=A\n@R14\nD=M-D\nA=D\nD=M\n@R15\nM=D\n// pop argument 0\n@0\nD=A\n@ARG\nD=D+M\n@R13\nM=D\n@SP\nM=M-1\nD=M\nA=D\nD=M\n@R13\nA=M\nM=D\n//    SP = ARG + 1\n@ARG\nD=M+1\n@SP\nM=D\n//    THAT = *(endFrame - 1)\n@1\nD=A\n@R14\nD=M-D\nA=D\nD=M\n@THAT\nM=D\n//    THIS = *(endFrame - 2)\n@2\nD=A\n@R14\nD=M-D\nA=D\nD=M\n@THIS\nM=D\n//    ARG = *(endFrame - 3)\n@3\nD=A\n@R14\nD=M-D\nA=D\nD=M\n@ARG\nM=D\n//    LCL = *(endFrame - 4)\n@4\nD=A\n@R14\nD=M-D\nA=D\nD=M\n@LCL\nM=D\n//    goto retAddr\n@R15\nA=M\n0;JMP\n"
         );
     }
 }
