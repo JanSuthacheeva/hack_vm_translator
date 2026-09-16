@@ -166,7 +166,7 @@ fn translate_push(command: PushPop, name: &str) -> String {
 
 
 fn translate_return(name: &str) -> String {
-    let mut res = String::from("// return\n//  endFrame = LCL\n@LCL\nD=M\n@R14\nM=D\n//   retAddr = *(endFrame - 5)\n@5\nD=A\n@R14\nD=M-D\n@R15\nM=D\n");
+    let mut res = String::from("// return\n//  endFrame = LCL\n@LCL\nD=M\n@R14\nM=D\n//   retAddr = *(endFrame - 5)\n@5\nD=A\n@R14\nD=M-D\nA=D\nD=M\n@R15\nM=D\n");
     let pp = PushPop {
         segment: Segment::Argument,
         i: 0,
