@@ -2,7 +2,7 @@ use hack_vm_translator::{translate, initialize};
 use std::env;
 use std::error::Error;
 use std::fs;
-use std::path::{PathBuf, Path};
+use std::path::{PathBuf, Path, absolute};
 use std::process;
 
 fn main() {
@@ -53,10 +53,11 @@ impl Config {
 
         let input = match args.next() {
             Some(arg) => arg,
-            None => return Err("Did not find an input".into()),
+            None => String::from("./"),
         };
 
         let path = Path::new(&input);
+
 
         if path.is_file() {
             if path.extension().unwrap() != "vm" {
@@ -72,6 +73,8 @@ impl Config {
             })
         } 
         if path.is_dir() {
+            let abs = absolute(path)?;
+            let name = abs.file_name().ok_or("Error extracting directory name.")?;
             // find Sys.vm
             let sys_vm = path.join("Sys.vm");
             if !sys_vm.is_file() {
@@ -82,7 +85,7 @@ impl Config {
             handle_dir(path, &mut input_files);
             return Ok(Config {
                 input_files,
-                output_file: path.with_extension("asm"),
+                output_file: path.with_file_name(name).with_extension("asm"),
                 parent
             });
         }
